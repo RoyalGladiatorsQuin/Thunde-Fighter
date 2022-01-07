@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+		<link rel="stylesheet" href="./css/style.css" />
+		<link rel="stylesheet" href="./lib/css/animate.min.css" />
+	</head>
+	<body>
+		<div class="restart">
+			<h1>你挂了</h1>
+			<div class="
+          restart-btn
+          animate__animated animate__heartBeat animate__infinite
+        ">
+				再来一局
+			</div>
+		</div>
+
+		<div class="start">
+			<h1 class="animate__animated animate__heartBeat animate__infinite">
+				飞机大战
+			</h1>
+			<div class="start-btn" difficulty="1">
+				普通
+			</div>
+			<div class="start-btn" difficulty="1.5">
+				噩梦
+			</div>
+			<div class="start-btn" difficulty="2">
+				地狱
+			</div>
+		</div>
+
+		<canvas id="canvas">
+			 什么叫我竟然敲代码了？我不敲代码我干什么啊？ 
+		</canvas>
+		<script src="./js/utils.js">
+		</script>
+		<script src="./js/setting.js">
+		</script>
+		<script src="./js/sprite.js">
+		</script>
+		<script src="./js/sound.js">
+		</script>
+		<script src="./lib/js/jquery.min.js">
+		</script>
+		<script>
+			window.onload = function() {
+				var canvas = document.querySelector("#canvas");
+				var ctx = canvas.getContext("2d");
+				//  通过jquery获取 重新开始的盒子，并且把盒子隐藏起来
+				var $restart = $(".restart").hide();
+				// 点击了重新开始的按钮之后  我们就让游戏数据归0，并重启的盒子隐藏起来
+				$(".restart-btn").on("click", function() {
+					initGame();
+					$restart.hide();
+				});
+				$(".start-btn").on("click", function() {
+					initGame();
+					difficulty = $(this).attr("difficulty");
+					// BGM.play()
+					$(".start").hide();
+				});
+				// 计数器 用来统计游戏进行了多少个定时器间隔
+				var count = 0;
+				var score = 0; // 记录玩家的得分
+				var difficulty = 1; // 难度系数
+				canvas.width = WIDTH;
+				canvas.height = HEIGHT;
+
+				// 敌机数组， 用来批量管理敌机， 里面放的都是敌机对象
+				// var enemyList = [];
+				var enemyList = new ObjList();
+
+				// 管理子弹对象
+				var bulletList = new ObjList();
+
+				// 爆炸对象的列表
+				var exposionList = new ObjList();
+
+				//  爆炸声音的列表
+				var boomList = new ObjList();
+
+				//  boss和敌机发射子弹的列表
+				var enemyBulletList = new ObjList();
+
+				//  执行了玩家player初始化操作  ：鼠标事件的绑定
+				player.init(canvas);
+
+				// 生成并且绘制子弹
+				function generateBullet() {
+					//  按照一定的频率生成子弹
+					if (count % 10 === 0) {
+						//  这一行是标准的正中央的子弹
+						bulletList.data.push(
+							new Bullet(
+								player.x + player.width / 2 - BULLET_WIDTH / 2,
+								player.y,
+								BULLET_WIDTH,
+								BULLET_HEIGHT,
+								bulletImg,
+								BULLET_SPEED
+							)
+						);
+						// bulletList.data.push(
+						//   new LightBullet(
+						//     player.x + player.width / 2 - BULLET_WIDTH / 2,
+						//     player.y - 100,
+						//   )
+						// );
+					}
+
+					// 绘制子弹
+					bulletList.data.forEach(function(bullet) {
+						bullet.move(bulletList, player);
+						bullet.draw(ctx);
+					});
+				}
+
+				// 生成并且绘制敌机
+				function generateEnemy() {
+					//  每ENEMY_FREQUENT个定时器间隔 生成1架敌机
+					if (count % parseInt(ENEMY_FREQUENT / difficulty) === 0) {
+						//  生成敌机的逻辑， 就是往enemyList数组中追加新的敌机对象
+						enemyList.data.push(
+							new Enemy(
+								getRandomInt(0, WIDTH - ENEMY_WIDTH),
+								-ENEMY_HEIGHT,
+								ENEMY_SPEED * difficulty
+							)
+						);
+					}
+
+					enemyList.data.forEach(function(enemy) {
+						enemy.move(enemyList);
+						enemy.draw(ctx);
+
+						// 要做敌机和玩家的碰撞效果 很简单 只需要遍历所有的敌机 ，
+						// 让每一架敌机和玩家进行碰撞检测即可找出撞到的敌机
+						// if(isCollide(player, enemy)) {
+						//   console.log(enemy)
+						//   enemyList.recycle(enemy)
+						// }
+					});
+				}
+
+				//  初始游戏的数据
+				function initGame() {
+					player.isLiving = true;
+					score = 0;
+					// enemyList.data = []
+					// bulletList.data = []
+					// exposionList.data = []
+					enemyList.clear();
+					bulletList.clear();
+					exposionList.clear();
+				}
+
+				function checkCollide() {
+					//  检测玩家有没有和敌机发生碰撞
+					var result = isCollideOneAndGroup(player, enemyList.data);
+
+					// 如果发生了碰撞 就把敌机回收掉
+					if (result) {
+						enemyList.recycle(result);
+
+						exposionList.data.push(
+							new Explosion(result.x, result.y, ENEMY_WIDTH, ENEMY_HEIGHT)
+						);
+						// 然后设置玩家挂掉了......
+						player.isLiving = false;
+						$restart.show();
+
+						exposionList.data.push(new Explosion(result.x, result.y, 150, 90));
+					}
+
+					// 检测 子弹数组 和 敌机数组之间的碰撞
+					var result2 = isCollideByGroup(bulletList.data, enemyList.data);
+
+					// 把发生碰撞的子弹回收掉
+					if (result2[0] && !result2[0].isPersist) {
+						bulletList.recycle(result2[0]);
+					}
+
+					//  把被击落的敌机 回收掉
+					if (result2[1]) {
+						//  创建爆炸声音， 放在爆炸列表中
+						boomList.data.push(new Boom(boomList));
+
+						score += 2;
+						enemyList.recycle(result2[1]);
+						exposionList.data.push(
+							new Explosion(
+								result2[1].x,
+								result2[1].y,
+								ENEMY_WIDTH,
+								ENEMY_HEIGHT
+							)
+						);
+					}
+				}
+
+				// 测试碰撞函数是否正确的一个函数，游戏正常运行时，不需要调用这个函数
+				function testCollide() {
+					// 测试碰撞函数是否正常的测试对象
+					var test = {
+						x: 300,
+						y: 300,
+						width: 100,
+						height: 100
+					};
+					//  绘制出测试对象
+					ctx.fillStyle = "red";
+					ctx.fillRect(test.x, test.y, test.width, test.height);
+
+					// 把玩家对象改画成一个绿色的方块
+					ctx.fillStyle = "green";
+					ctx.fillRect(player.x, player.y, player.width, player.height);
+
+					// 检测碰撞的结果 并打印出来
+					console.log(isCollide(test, player));
+				}
+
+				//  生成boss
+				var boss = new Boss();
+
+				function checkBossCollide() {
+					// 1. 玩家的子弹 击中boss 会boss掉血
+					var result = isCollideOneAndGroup(boss, bulletList.data);
+					if (result) {
+						bulletList.recycle(result);
+						exposionList.data.push(
+							new Explosion(result.x, result.y - boss.height / 2, 100, 80)
+						);
+
+						console.log(boss.HP);
+						boss.HP = boss.HP - 10;
+
+						if (boss.HP < 500) {
+							boss.dying(exposionList)
+						}
+
+
+						if (boss.HP <= 0) {
+							boss.show = false;
+							for (var i = 0; i < 10; i++) {
+								boss.dying(exposionList)
+							}
+						}
+					}
+
+					// 2. boss的子弹击中玩家
+					var result2 = isCollideOneAndGroup(player, enemyBulletList.data)
+
+					if (result2) {
+						console.log('玩家被击中了！')
+						enemyBulletList.recycle(result2)
+					}
+
+					// 3. boss和玩家的碰撞
+					if (isCollide(player, boss)) {
+						player.isLiving = false
+						exposionList.data.push(new Explosion(player.x, player.y, 100, 80))
+						$restart.show()
+					}
+				}
+
+				//  间隔定时器来实现 动画
+				var timer = setInterval(function() {
+					count++;
+					//  清除上一帧画面
+					ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+					//  绘制与移动背景
+					background.draw(ctx);
+					background.move();
+
+					//  检测玩家的存活 我们就发射子弹
+					if (player.isLiving) {
+						generateBullet();
+					}
+
+					//  只有得分是100的倍数时， 才触发boss出场
+					if (score > 0 && score % 100 === 0) {
+						boss.HP = 1000
+						boss.x = WIDTH / 2 - 125;
+						boss.y = -250;
+						boss.show = true
+					}
+
+					//  生成boss时则不生成敌人小飞机
+					if (!boss.show) {
+						generateEnemy();
+					}
+
+					//  如果玩家是活着的 则进行玩家碰撞检测
+					if (player.isLiving) {
+						checkCollide();
+					}
+
+					// 只有玩家是活着的，我们才绘制玩家
+					if (player.isLiving) {
+						player.draw(ctx);
+					}
+
+					//播放爆炸的声音
+					boomList.data.forEach(function(boom) {
+						boom.play();
+					});
+
+					if (boss.show) {
+						// 把boss画到画布上
+						boss.draw(ctx);
+						boss.move();
+
+						console.log(boss.show)
+						//  让boss发射子弹
+						if (count % 20 === 0) {
+							boss.fire(enemyBulletList);
+						}
+
+						if (player.isLiving) {
+							checkBossCollide();
+						}
+
+						// 绘制boss和敌机发射的子弹
+						enemyBulletList.data.forEach(function(bullet) {
+							bullet.draw(ctx);
+							bullet.move(enemyBulletList);
+						});
+					}
+
+					// 计分板
+					ctx.font = "20px paopao";
+					ctx.textBaseline = "top";
+					ctx.fillStyle = "#fff";
+					ctx.fillText(`得分：${score}`, 0, 0);
+
+					// 绘制爆炸动画
+					exposionList.data.forEach(function(explosion) {
+						explosion.draw(ctx);
+						explosion.move(exposionList);
+					});
+				}, 1000 / FPS);
+			};
+		</script>
+	</body>
+</html>

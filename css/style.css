@@ -1,0 +1,73 @@
+/* 添加自定义字体 */
+@font-face {
+    font-family: paopao;
+    src: url(../font/Paopao.ttf);
+}
+
+
+#canvas {
+    margin: auto;
+    display: block;
+
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  body {
+    margin: 0;
+    /*  给body 设置背景  */
+    background: url(../bg1.jpg) no-repeat;
+    background-size: 100% 100%;
+    height: 100vh;
+    font-family: paopao;
+  }
+
+  .restart, .start {
+      /* 加一个定位 */
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      
+      /* 利用2d装换 把盒子的位置 再往左上方偏移一点 */
+      transform: translate(-50%, -50%);
+      color: red;
+      /*  文本水平居中 */
+      text-align: center;
+
+      /* background-color: pink; */
+  }
+
+  .restart h1, .start h1 {
+      margin-top: 0;
+      margin-bottom: 50px;
+      font-size: 50px;
+  }
+
+  .restart .restart-btn, .start-btn {
+      width: 150px;
+      height: 60px;
+      background-color: red;
+      color: #fff;
+
+      /* 行高 */
+      line-height: 60px;
+      font-size: 20px;
+
+      /* 圆角效果 */
+      border-radius: 10px;
+
+      /* 把鼠标指针变成手的形状 */
+      cursor: pointer;
+  }
+
+  /* 鼠标悬浮效果 :hover */
+  .restart .restart-btn:hover, 
+  .start-btn:hover{
+      transform: translateY(-4px);
+      box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  .start-btn {
+      display: block;
+      margin: 20px auto;
+      background-color: #F7797D;
+  }
